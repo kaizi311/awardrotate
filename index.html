@@ -164,8 +164,19 @@
 
     //页面所有元素加载完毕后执行drawRouletteWheel()方法对转盘进行渲染
     window.onload = function() {
-
         drawRouletteWheel();
+        
+        // 添加性能监控
+        if (window.performance && window.performance.timing) {
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    let timing = window.performance.timing;
+                    console.log('页面加载时间：', 
+                        timing.loadEventEnd - timing.navigationStart + 'ms');
+                }, 0);
+            });
+        }
+        
         $(".kePublic").on("touchstart", function(e) {
             e.preventDefault();
         });
@@ -253,7 +264,110 @@
         });
     }
 
-    // ... existing code ...
+    // 处理抽奖错误
+    function handleDrawError(error) {
+        $.alert('抽奖失败，请稍后重试');
+        console.error('Draw error:', error);
+    }
+
+    // 绘制奖品区块
+    function drawPrizeSection(ctx, prize, index, arc) {
+        const angle = turnplate.startAngle + index * arc;
+        
+        // 绘制扇形
+        ctx.fillStyle = turnplate.colors[index];
+        ctx.beginPath();
+        ctx.arc(211, 211, turnplate.outsideRadius, angle, angle + arc, false);
+        ctx.arc(211, 211, turnplate.insideRadius, angle + arc, angle, true);
+        ctx.stroke();
+        ctx.fill();
+        
+        // 绘制奖品文字
+        ctx.save();
+        ctx.fillStyle = "rgba(0,0,0,0)";
+        ctx.strokeStyle = "rgba(0,0,0,0)";
+        
+        // 计算文字位置
+        const text = prize;
+        const line_height = 30;
+        
+        // 移动到正确的位置
+        ctx.translate(
+            211 + Math.cos(angle + arc / 2) * turnplate.textRadius,
+            211 + Math.sin(angle + arc / 2) * turnplate.textRadius
+        );
+        
+        // 旋转文字到正确的角度
+        ctx.rotate(angle + arc / 2 + Math.PI / 2);
+        
+        // 分割文字并绘制
+        const textParts = text.length > 4 ? 
+            [text.substring(0, 4), text.substring(4)] : 
+            [text];
+            
+        textParts.forEach((part, i) => {
+            ctx.fillText(
+                part,
+                -ctx.measureText(part).width / 2,
+                i * line_height + 20
+            );
+        });
+        
+        ctx.restore();
+    }
+
+    // 初始化函数
+    function initTurnplate() {
+        // 预加载图片
+        preConfig.sources.imgs.source = [
+            'images/turnplate-pointer.png',
+            'images/draw_index.png',
+            'images/logo.png'
+        ];
+        
+        // 开始预加载
+        preload();
+        
+        // 绑定 FastClick
+        if ('addEventListener' in document) {
+            document.addEventListener('DOMContentLoaded', function() {
+                FastClick.attach(document.body);
+            }, false);
+        }
+    }
+
+    // 页面加载完成后初始化
+    $(document).ready(function() {
+        initTurnplate();
+        
+        // 防止页面滚动
+        document.body.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+        
+        // 错误处理
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('Error: ' + msg + '\nurl: ' + url + '\nline: ' + line);
+            return false;
+        };
+    });
+
+    // 添加转盘重置函数
+    function resetTurnplate() {
+        turnplate.isRotating = false;
+        $('#wheelcanvas').stopRotate();
+        drawRouletteWheel();
+    }
+
+    // 添加销毁函数
+    function destroyTurnplate() {
+        // 移除事件监听
+        $('.pointer').off('touchend');
+        // 清理定时器
+        clearLoadingList();
+        // 重置状态
+        resetTurnplate();
+    }
     </script>
 </body>
 
